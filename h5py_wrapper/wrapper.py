@@ -9,7 +9,6 @@ from future.builtins import str
 import h5py
 import numpy as np
 import os
-import re
 from subprocess import call
 import warnings
 
@@ -172,8 +171,8 @@ def _dict_to_h5(f, d, overwrite_dataset, compression=None, parent_group=None):
     if parent_group is None:
         parent_group = f.parent
     for key, value in d.items():
-        if isinstance(value, collections.MutableMapping):
-            group_name = os.path.join(parent_group.name, str(key))
+        if isinstance(value, collections.abc.MutableMapping):
+            group_name = parent_group.name + '/' + str(key)
             group = f.require_group(group_name)
             _dict_to_h5(f, value, overwrite_dataset, parent_group=group,
                         compression=compression)
@@ -191,8 +190,7 @@ def _dict_to_h5(f, d, overwrite_dataset, compression=None, parent_group=None):
                                     compression=compression)
                 else:
                     raise KeyError("Dataset {key} already "
-                                   "exists.".format(key=os.path.join(
-                                       parent_group.name, key)))
+                                   "exists.".format(key= parent_group.name + "/" + key))
 
 
 def _create_dataset(parent_group, key, value, compression=None):
@@ -209,8 +207,7 @@ def _create_dataset(parent_group, key, value, compression=None):
             # This does not work for more than two dimensions.
             if len(np.shape(value)) > 1:
                 raise ValueError("Dataset {key} has an unsupported "
-                                 "format.".format(key=os.path.join(
-                                     parent_group.name, key)))
+                                 "format.".format(key=parent_group.name + '/' + key))
             else:
                 oldshape = np.array([len(x) for x in value])
                 value_types = lib.convert_iterable_to_numpy_array([type(x).__name__ for x in value])
@@ -227,7 +224,7 @@ def _create_dataset(parent_group, key, value, compression=None):
             dataset = parent_group.create_dataset(
                 str(key), data=lib.convert_iterable_to_numpy_array(value), compression=compression)
     # ignore compression argument for scalar datasets
-    elif not isinstance(value, collections.Iterable):
+    elif not isinstance(value, collections.abc.Iterable):
         dataset = parent_group.create_dataset(str(key), data=value)
     else:
         dataset = parent_group.create_dataset(
@@ -281,7 +278,7 @@ def _load_dataset(f, lazy=False):
                 return _cast_value_type(f.value, value_type,
                                         unit=f.attrs['_unit'])
             else:
-                return _cast_value_type(f.value, value_type)
+                return _cast_value_type(f[()], value_type)
 
 
 def _evaluate_key(f):
